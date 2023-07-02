@@ -2,63 +2,102 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityStandardAssets.Characters.ThirdPerson;
 
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] TextMeshProUGUI goldText;
     [SerializeField] TextMeshProUGUI timeText;
+    [SerializeField] AudioClip goldPickupSound;
+    AudioSource audioSource;
+    public GameObject endScreen;
+    public GameObject shopTooltip;
     public GameObject gameMenuUI;
-    private int nbGold;
+    public GameObject shopMenuUI;
+    public int nbGold;
+    public int goldNeeded = 1000;
+    private TextMeshProUGUI endText;
+    private ThirdPersonCharacter thirdPersonCharacter;
     private float actualTime;
-    private bool isNearVault = false;
+    private bool isNearShop = false;
+    public bool hasBoots = false;
     // Start is called before the first frame update
     void Start()
     {
+        audioSource = GetComponent<AudioSource>();
+        endText = endScreen.transform.Find("EndText").GetComponent<TextMeshProUGUI>();
         actualTime += Time.deltaTime;
         timeText.text = "Time : " + actualTime.ToString("F2");
         nbGold = 0;
-        goldText.text = "Gold : " + nbGold;
+        goldText.text = "Gold : " + nbGold + "/" + goldNeeded;
+        thirdPersonCharacter = this.GetComponent<ThirdPersonCharacter>();
     }
 
     // Update is called once per frame
     void Update()
     {
+        if(hasBoots){
+            thirdPersonCharacter.m_MoveSpeedMultiplier = 1.5f;
+        }
+
         actualTime += Time.deltaTime;
         timeText.text = "Time : " + actualTime.ToString("F2");
-        if(Input.GetKeyDown(KeyCode.E) && isNearVault){
-            print("OPEN MENU");
+        if(Input.GetKeyDown(KeyCode.E) && isNearShop && !gameMenuUI.activeSelf){
+            shopMenuUI.SetActive(!shopMenuUI.activeSelf);
         }
         
         if(Input.GetKeyDown(KeyCode.Escape)){
-            gameMenuUI.SetActive(!gameMenuUI.activeSelf);
+            if(shopMenuUI.activeSelf){
+                shopMenuUI.SetActive(false);
+            } else { 
+                gameMenuUI.SetActive(!gameMenuUI.activeSelf);
+            }
+        }
+
+        if(nbGold >= goldNeeded){
+            Win();
+            return;
         }
         
-        goldText.text = "Gold : " + nbGold;
+        goldText.text = "Gold : " + nbGold + "/"+goldNeeded;
     }
     private void OnTriggerEnter(Collider other) {
-        if(other.gameObject.tag == "GoldPurse"){
+        if(other.gameObject.GetComponent<GoldPurseScript>() as GoldPurseScript != null){
+            GoldPurseScript goldPurseItem = other.gameObject.GetComponent<GoldPurseScript>();
+            nbGold += goldPurseItem.goldValue;
+            PickUp();
             Object.Destroy(other.gameObject);
-            nbGold += 100;
-        } else if(other.gameObject.tag == "SmallGoldPurse"){
-            Object.Destroy(other.gameObject);
-            nbGold += 20;
-        } else if(other.gameObject.tag == "BankVault"){
-            isNearVault = true;
+        } else if(other.gameObject.tag == "ShopKeeper"){
+            shopTooltip.SetActive(true);
+            isNearShop = true;
         }
     }
 
     private void OnTriggerExit(Collider other) {
-        if(other.gameObject.tag == "BankVault"){
-            isNearVault = false;
+        if(other.gameObject.tag == "ShopKeeper"){
+            isNearShop = false;
+            shopTooltip.SetActive(false);
+            if(shopMenuUI.activeSelf){
+                shopMenuUI.SetActive(false);
+            }
         }
     }
 
-    private void OnCollisionEnter(Collision other) {
-        if(other.gameObject.tag == "Ennemy"){
-            nbGold -= 100;
-            if(nbGold <= 0 ){
-                nbGold = 0;
-            }
-        }
+    public void Win(){
+        goldText.text = "Gold : " + goldNeeded + "/" + goldNeeded;
+        Time.timeScale = 0;
+        endText.text = "YOU WIN !";
+        endScreen.SetActive(true);
+    }
+
+    public void Loose(){
+        Time.timeScale = 0;
+        endText.text = "YOU LOOSE !";
+        endScreen.SetActive(true);
+    }
+    
+    private void PickUp(){
+        audioSource.clip = goldPickupSound;
+        audioSource.Play();
     }
 }

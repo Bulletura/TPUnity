@@ -8,6 +8,7 @@ TagManager:
   - SmallGoldPurse
   - BankVault
   - Ennemy
+  - ShopKeeper
   layers:
   - Default
   - TransparentFX
